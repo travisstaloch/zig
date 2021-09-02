@@ -104,10 +104,13 @@ const Writer = struct {
 
             .add,
             .addwrap,
+            .addsat,
             .sub,
             .subwrap,
+            .subsat,
             .mul,
             .mulwrap,
+            .mulsat,
             .div,
             .rem,
             .ptr_add,
@@ -129,6 +132,7 @@ const Writer = struct {
             .ptr_elem_val,
             .ptr_ptr_elem_val,
             .shl,
+            .shl_sat,
             .shr,
             => try w.writeBinOp(s, inst),
 

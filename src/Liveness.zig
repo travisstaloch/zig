@@ -226,10 +226,13 @@ fn analyzeInst(
     switch (inst_tags[inst]) {
         .add,
         .addwrap,
+        .addsat,
         .sub,
         .subwrap,
+        .subsat,
         .mul,
         .mulwrap,
+        .mulsat,
         .div,
         .rem,
         .ptr_add,
@@ -251,6 +254,7 @@ fn analyzeInst(
         .ptr_elem_val,
         .ptr_ptr_elem_val,
         .shl,
+        .shl_sat,
         .shr,
         => {
             const o = inst_datas[inst].bin_op;

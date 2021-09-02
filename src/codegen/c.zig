@@ -847,14 +847,17 @@ fn genBody(o: *Object, body: []const Air.Inst.Index) error{ AnalysisFail, OutOfM
             // that wrapping is UB.
             .add, .ptr_add => try airBinOp( o, inst, " + "),
             .addwrap       => try airWrapOp(o, inst, " + ", "addw_"),
+            .addsat        => return o.dg.fail("TODO: C backend: implement codegen for addsat", .{}),
             // TODO use a different strategy for sub that communicates to the optimizer
             // that wrapping is UB.
             .sub, .ptr_sub => try airBinOp( o, inst, " - "),
             .subwrap       => try airWrapOp(o, inst, " - ", "subw_"),
+            .subsat        => return o.dg.fail("TODO: C backend: implement codegen for subsat", .{}),
             // TODO use a different strategy for mul that communicates to the optimizer
             // that wrapping is UB.
             .mul           => try airBinOp( o, inst, " * "),
             .mulwrap       => try airWrapOp(o, inst, " * ", "mulw_"),
+            .mulsat        => return o.dg.fail("TODO: C backend: implement codegen for mulsat", .{}),
             // TODO use a different strategy for div that communicates to the optimizer
             // that wrapping is UB.
             .div           => try airBinOp( o, inst, " / "),
@@ -876,6 +879,7 @@ fn genBody(o: *Object, body: []const Air.Inst.Index) error{ AnalysisFail, OutOfM
 
             .shr        => try airBinOp(o, inst, " >> "),
             .shl        => try airBinOp(o, inst, " << "),
+            .shl_sat    => return o.dg.fail("TODO: C backend: implement codegen for shl_sat", .{}),
 
             .not        => try airNot(  o, inst),
 

@@ -102,15 +102,21 @@ pub const Token = struct {
         plus_equal,
         plus_percent,
         plus_percent_equal,
+        plus_pipe,
+        plus_pipe_equal,
         minus,
         minus_equal,
         minus_percent,
         minus_percent_equal,
+        minus_pipe,
+        minus_pipe_equal,
         asterisk,
         asterisk_equal,
         asterisk_asterisk,
         asterisk_percent,
         asterisk_percent_equal,
+        asterisk_pipe,
+        asterisk_pipe_equal,
         arrow,
         colon,
         slash,
@@ -123,6 +129,8 @@ pub const Token = struct {
         angle_bracket_left_equal,
         angle_bracket_angle_bracket_left,
         angle_bracket_angle_bracket_left_equal,
+        angle_bracket_angle_bracket_left_pipe,
+        angle_bracket_angle_bracket_left_pipe_equal,
         angle_bracket_right,
         angle_bracket_right_equal,
         angle_bracket_angle_bracket_right,
@@ -225,15 +233,21 @@ pub const Token = struct {
                 .plus_equal => "+=",
                 .plus_percent => "+%",
                 .plus_percent_equal => "+%=",
+                .plus_pipe => "+|",
+                .plus_pipe_equal => "+|=",
                 .minus => "-",
                 .minus_equal => "-=",
                 .minus_percent => "-%",
                 .minus_percent_equal => "-%=",
+                .minus_pipe => "-|",
+                .minus_pipe_equal => "-|=",
                 .asterisk => "*",
                 .asterisk_equal => "*=",
                 .asterisk_asterisk => "**",
                 .asterisk_percent => "*%",
                 .asterisk_percent_equal => "*%=",
+                .asterisk_pipe => "*|",
+                .asterisk_pipe_equal => "*|=",
                 .arrow => "->",
                 .colon => ":",
                 .slash => "/",
@@ -246,6 +260,8 @@ pub const Token = struct {
                 .angle_bracket_left_equal => "<=",
                 .angle_bracket_angle_bracket_left => "<<",
                 .angle_bracket_angle_bracket_left_equal => "<<=",
+                .angle_bracket_angle_bracket_left_pipe => "<<|",
+                .angle_bracket_angle_bracket_left_pipe_equal => "<<|=",
                 .angle_bracket_right => ">",
                 .angle_bracket_right_equal => ">=",
                 .angle_bracket_angle_bracket_right => ">>",
@@ -349,8 +365,10 @@ pub const Tokenizer = struct {
         pipe,
         minus,
         minus_percent,
+        minus_pipe,
         asterisk,
         asterisk_percent,
+        asterisk_pipe,
         slash,
         line_comment_start,
         line_comment,
@@ -379,8 +397,10 @@ pub const Tokenizer = struct {
         percent,
         plus,
         plus_percent,
+        plus_pipe,
         angle_bracket_left,
         angle_bracket_angle_bracket_left,
+        angle_bracket_angle_bracket_left_pipe,
         angle_bracket_right,
         angle_bracket_angle_bracket_right,
         period,
@@ -581,6 +601,9 @@ pub const Tokenizer = struct {
                     '%' => {
                         state = .asterisk_percent;
                     },
+                    '|' => {
+                        state = .asterisk_pipe;
+                    },
                     else => {
                         result.tag = .asterisk;
                         break;
@@ -595,6 +618,18 @@ pub const Tokenizer = struct {
                     },
                     else => {
                         result.tag = .asterisk_percent;
+                        break;
+                    },
+                },
+
+                .asterisk_pipe => switch (c) {
+                    '=' => {
+                        result.tag = .asterisk_pipe_equal;
+                        self.index += 1;
+                        break;
+                    },
+                    else => {
+                        result.tag = .asterisk_pipe;
                         break;
                     },
                 },
@@ -625,6 +660,9 @@ pub const Tokenizer = struct {
                     '%' => {
                         state = .plus_percent;
                     },
+                    '|' => {
+                        state = .plus_pipe;
+                    },
                     else => {
                         result.tag = .plus;
                         break;
@@ -639,6 +677,18 @@ pub const Tokenizer = struct {
                     },
                     else => {
                         result.tag = .plus_percent;
+                        break;
+                    },
+                },
+
+                .plus_pipe => switch (c) {
+                    '=' => {
+                        result.tag = .plus_pipe_equal;
+                        self.index += 1;
+                        break;
+                    },
+                    else => {
+                        result.tag = .plus_pipe;
                         break;
                     },
                 },
@@ -892,6 +942,9 @@ pub const Tokenizer = struct {
                     '%' => {
                         state = .minus_percent;
                     },
+                    '|' => {
+                        state = .minus_pipe;
+                    },
                     else => {
                         result.tag = .minus;
                         break;
@@ -906,6 +959,17 @@ pub const Tokenizer = struct {
                     },
                     else => {
                         result.tag = .minus_percent;
+                        break;
+                    },
+                },
+                .minus_pipe => switch (c) {
+                    '=' => {
+                        result.tag = .minus_pipe_equal;
+                        self.index += 1;
+                        break;
+                    },
+                    else => {
+                        result.tag = .minus_pipe;
                         break;
                     },
                 },
@@ -931,8 +995,23 @@ pub const Tokenizer = struct {
                         self.index += 1;
                         break;
                     },
+                    '|' => {
+                        result.tag = .angle_bracket_angle_bracket_left_pipe;
+                    },
                     else => {
                         result.tag = .angle_bracket_angle_bracket_left;
+                        break;
+                    },
+                },
+
+                .angle_bracket_angle_bracket_left_pipe => switch (c) {
+                    '=' => {
+                        result.tag = .angle_bracket_angle_bracket_left_pipe_equal;
+                        self.index += 1;
+                        break;
+                    },
+                    else => {
+                        result.tag = .angle_bracket_angle_bracket_left_pipe;
                         break;
                     },
                 },

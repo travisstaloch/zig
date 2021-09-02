@@ -317,27 +317,35 @@ fn lvalExpr(gz: *GenZir, scope: *Scope, node: Ast.Node.Index) InnerError!Zir.Ins
         .assign_bit_and,
         .assign_bit_or,
         .assign_bit_shift_left,
+        .assign_bit_shift_left_sat,
         .assign_bit_shift_right,
         .assign_bit_xor,
         .assign_div,
         .assign_sub,
         .assign_sub_wrap,
+        .assign_sub_sat,
         .assign_mod,
         .assign_add,
         .assign_add_wrap,
+        .assign_add_sat,
         .assign_mul,
         .assign_mul_wrap,
+        .assign_mul_sat,
         .add,
         .add_wrap,
+        .add_sat,
         .sub,
         .sub_wrap,
+        .sub_sat,
         .mul,
         .mul_wrap,
+        .mul_sat,
         .div,
         .mod,
         .bit_and,
         .bit_or,
         .bit_shift_left,
+        .bit_shift_left_sat,
         .bit_shift_right,
         .bit_xor,
         .bang_equal,
@@ -525,6 +533,10 @@ fn expr(gz: *GenZir, scope: *Scope, rl: ResultLoc, node: Ast.Node.Index) InnerEr
             try assignShift(gz, scope, node, .shl);
             return rvalue(gz, rl, .void_value, node);
         },
+        .assign_bit_shift_left_sat => {
+            try assignBinOpExt(gz, scope, node, .shl_with_saturation);
+            return rvalue(gz, rl, .void_value, node);
+        },
         .assign_bit_shift_right => {
             try assignShift(gz, scope, node, .shr);
             return rvalue(gz, rl, .void_value, node);
@@ -554,6 +566,10 @@ fn expr(gz: *GenZir, scope: *Scope, rl: ResultLoc, node: Ast.Node.Index) InnerEr
             try assignOp(gz, scope, node, .subwrap);
             return rvalue(gz, rl, .void_value, node);
         },
+        .assign_sub_sat => {
+            try assignBinOpExt(gz, scope, node, .sub_with_saturation);
+            return rvalue(gz, rl, .void_value, node);
+        },
         .assign_mod => {
             try assignOp(gz, scope, node, .mod_rem);
             return rvalue(gz, rl, .void_value, node);
@@ -566,6 +582,10 @@ fn expr(gz: *GenZir, scope: *Scope, rl: ResultLoc, node: Ast.Node.Index) InnerEr
             try assignOp(gz, scope, node, .addwrap);
             return rvalue(gz, rl, .void_value, node);
         },
+        .assign_add_sat => {
+            try assignBinOpExt(gz, scope, node, .add_with_saturation);
+            return rvalue(gz, rl, .void_value, node);
+        },
         .assign_mul => {
             try assignOp(gz, scope, node, .mul);
             return rvalue(gz, rl, .void_value, node);
@@ -574,17 +594,25 @@ fn expr(gz: *GenZir, scope: *Scope, rl: ResultLoc, node: Ast.Node.Index) InnerEr
             try assignOp(gz, scope, node, .mulwrap);
             return rvalue(gz, rl, .void_value, node);
         },
+        .assign_mul_sat => {
+            try assignBinOpExt(gz, scope, node, .mul_with_saturation);
+            return rvalue(gz, rl, .void_value, node);
+        },
 
         // zig fmt: off
-        .bit_shift_left  => return shiftOp(gz, scope, rl, node, node_datas[node].lhs, node_datas[node].rhs, .shl),
-        .bit_shift_right => return shiftOp(gz, scope, rl, node, node_datas[node].lhs, node_datas[node].rhs, .shr),
+        .bit_shift_left     => return shiftOp(gz, scope, rl, node, node_datas[node].lhs, node_datas[node].rhs, .shl),
+        .bit_shift_left_sat => return binOpExt(gz, scope, rl, node, node_datas[node].lhs, node_datas[node].rhs, .shl_with_saturation),
+        .bit_shift_right    => return shiftOp(gz, scope, rl, node, node_datas[node].lhs, node_datas[node].rhs, .shr),
 
         .add      => return simpleBinOp(gz, scope, rl, node, .add),
         .add_wrap => return simpleBinOp(gz, scope, rl, node, .addwrap),
+        .add_sat  => return binOpExt(gz, scope, rl, node, node_datas[node].lhs, node_datas[node].rhs, .add_with_saturation),
         .sub      => return simpleBinOp(gz, scope, rl, node, .sub),
         .sub_wrap => return simpleBinOp(gz, scope, rl, node, .subwrap),
+        .sub_sat  => return binOpExt(gz, scope, rl, node, node_datas[node].lhs, node_datas[node].rhs, .sub_with_saturation),
         .mul      => return simpleBinOp(gz, scope, rl, node, .mul),
         .mul_wrap => return simpleBinOp(gz, scope, rl, node, .mulwrap),
+        .mul_sat  => return binOpExt(gz, scope, rl, node, node_datas[node].lhs, node_datas[node].rhs, .mul_with_saturation),
         .div      => return simpleBinOp(gz, scope, rl, node, .div),
         .mod      => return simpleBinOp(gz, scope, rl, node, .mod_rem),
         .bit_and  => {
@@ -2645,6 +2673,31 @@ fn assignOp(
     _ = try gz.addBin(.store, lhs_ptr, result);
 }
 
+// TODO: is there an existing method to accomplish this?
+// TODO: likely rename this to indicate rhs type coercion or add more params to make it more general
+fn assignBinOpExt(
+    gz: *GenZir,
+    scope: *Scope,
+    infix_node: Ast.Node.Index,
+    op_inst_tag: Zir.Inst.Extended,
+) InnerError!void {
+    try emitDbgNode(gz, infix_node);
+    const astgen = gz.astgen;
+    const tree = astgen.tree;
+    const node_datas = tree.nodes.items(.data);
+
+    const lhs_ptr = try lvalExpr(gz, scope, node_datas[infix_node].lhs);
+    const lhs = try gz.addUnNode(.load, lhs_ptr, infix_node);
+    const lhs_type = try gz.addUnNode(.typeof, lhs, infix_node);
+    const rhs = try expr(gz, scope, .{ .coerced_ty = lhs_type }, node_datas[infix_node].rhs);
+    const result = try gz.addExtendedPayload(op_inst_tag, Zir.Inst.BinNode{
+        .node = gz.nodeIndexToRelative(infix_node),
+        .lhs = lhs,
+        .rhs = rhs,
+    });
+    _ = try gz.addBin(.store, lhs_ptr, result);
+}
+
 fn assignShift(
     gz: *GenZir,
     scope: *Scope,
@@ -2659,6 +2712,29 @@ fn assignShift(
     const lhs_ptr = try lvalExpr(gz, scope, node_datas[infix_node].lhs);
     const lhs = try gz.addUnNode(.load, lhs_ptr, infix_node);
     const rhs_type = try gz.addUnNode(.typeof_log2_int_type, lhs, infix_node);
+    const rhs = try expr(gz, scope, .{ .ty = rhs_type }, node_datas[infix_node].rhs);
+
+    const result = try gz.addPlNode(op_inst_tag, infix_node, Zir.Inst.Bin{
+        .lhs = lhs,
+        .rhs = rhs,
+    });
+    _ = try gz.addBin(.store, lhs_ptr, result);
+}
+
+fn assignShiftSat(
+    gz: *GenZir,
+    scope: *Scope,
+    infix_node: ast.Node.Index,
+    op_inst_tag: Zir.Inst.Tag,
+) InnerError!void {
+    try emitDbgNode(gz, infix_node);
+    const astgen = gz.astgen;
+    const tree = astgen.tree;
+    const node_datas = tree.nodes.items(.data);
+
+    const lhs_ptr = try lvalExpr(gz, scope, node_datas[infix_node].lhs);
+    const lhs = try gz.addUnNode(.load, lhs_ptr, infix_node);
+    const rhs_type = try gz.addUnNode(.typeof, lhs, infix_node);
     const rhs = try expr(gz, scope, .{ .ty = rhs_type }, node_datas[infix_node].rhs);
 
     const result = try gz.addPlNode(op_inst_tag, infix_node, Zir.Inst.Bin{
@@ -7647,6 +7723,26 @@ fn shiftOp(
     return rvalue(gz, rl, result, node);
 }
 
+// TODO: is there an existing way to do this?
+// TODO: likely rename this to reflect result_loc == .none or add more params to make it more general
+fn binOpExt(
+    gz: *GenZir,
+    scope: *Scope,
+    rl: ResultLoc,
+    node: Ast.Node.Index,
+    lhs_node: Ast.Node.Index,
+    rhs_node: Ast.Node.Index,
+    tag: Zir.Inst.Extended,
+) InnerError!Zir.Inst.Ref {
+    const lhs = try expr(gz, scope, .none, lhs_node);
+    const rhs = try expr(gz, scope, .none, rhs_node);
+    const result = try gz.addExtendedPayload(tag, Zir.Inst.Bin{
+        .lhs = lhs,
+        .rhs = rhs,
+    });
+    return rvalue(gz, rl, result, node);
+}
+
 fn cImport(
     gz: *GenZir,
     scope: *Scope,
@@ -7891,26 +7987,32 @@ fn nodeMayNeedMemoryLocation(tree: *const Ast, start_node: Ast.Node.Index) bool 
             .asm_simple,
             .add,
             .add_wrap,
+            .add_sat,
             .array_cat,
             .array_mult,
             .assign,
             .assign_bit_and,
             .assign_bit_or,
             .assign_bit_shift_left,
+            .assign_bit_shift_left_sat,
             .assign_bit_shift_right,
             .assign_bit_xor,
             .assign_div,
             .assign_sub,
             .assign_sub_wrap,
+            .assign_sub_sat,
             .assign_mod,
             .assign_add,
             .assign_add_wrap,
+            .assign_add_sat,
             .assign_mul,
             .assign_mul_wrap,
+            .assign_mul_sat,
             .bang_equal,
             .bit_and,
             .bit_or,
             .bit_shift_left,
+            .bit_shift_left_sat,
             .bit_shift_right,
             .bit_xor,
             .bool_and,
@@ -7926,10 +8028,12 @@ fn nodeMayNeedMemoryLocation(tree: *const Ast, start_node: Ast.Node.Index) bool 
             .mod,
             .mul,
             .mul_wrap,
+            .mul_sat,
             .switch_range,
             .field_access,
             .sub,
             .sub_wrap,
+            .sub_sat,
             .slice,
             .slice_open,
             .slice_sentinel,
@@ -8124,26 +8228,32 @@ fn nodeMayEvalToError(tree: *const Ast, start_node: Ast.Node.Index) enum { never
             .tagged_union_enum_tag_trailing,
             .add,
             .add_wrap,
+            .add_sat,
             .array_cat,
             .array_mult,
             .assign,
             .assign_bit_and,
             .assign_bit_or,
             .assign_bit_shift_left,
+            .assign_bit_shift_left_sat,
             .assign_bit_shift_right,
             .assign_bit_xor,
             .assign_div,
             .assign_sub,
             .assign_sub_wrap,
+            .assign_sub_sat,
             .assign_mod,
             .assign_add,
             .assign_add_wrap,
+            .assign_add_sat,
             .assign_mul,
             .assign_mul_wrap,
+            .assign_mul_sat,
             .bang_equal,
             .bit_and,
             .bit_or,
             .bit_shift_left,
+            .bit_shift_left_sat,
             .bit_shift_right,
             .bit_xor,
             .bool_and,
@@ -8159,9 +8269,11 @@ fn nodeMayEvalToError(tree: *const Ast, start_node: Ast.Node.Index) enum { never
             .mod,
             .mul,
             .mul_wrap,
+            .mul_sat,
             .switch_range,
             .sub,
             .sub_wrap,
+            .sub_sat,
             .slice,
             .slice_open,
             .slice_sentinel,
@@ -8296,26 +8408,32 @@ fn nodeImpliesRuntimeBits(tree: *const Ast, start_node: Ast.Node.Index) bool {
             .asm_simple,
             .add,
             .add_wrap,
+            .add_sat,
             .array_cat,
             .array_mult,
             .assign,
             .assign_bit_and,
             .assign_bit_or,
             .assign_bit_shift_left,
+            .assign_bit_shift_left_sat,
             .assign_bit_shift_right,
             .assign_bit_xor,
             .assign_div,
             .assign_sub,
             .assign_sub_wrap,
+            .assign_sub_sat,
             .assign_mod,
             .assign_add,
             .assign_add_wrap,
+            .assign_add_sat,
             .assign_mul,
             .assign_mul_wrap,
+            .assign_mul_sat,
             .bang_equal,
             .bit_and,
             .bit_or,
             .bit_shift_left,
+            .bit_shift_left_sat,
             .bit_shift_right,
             .bit_xor,
             .bool_and,
@@ -8331,10 +8449,12 @@ fn nodeImpliesRuntimeBits(tree: *const Ast, start_node: Ast.Node.Index) bool {
             .mod,
             .mul,
             .mul_wrap,
+            .mul_sat,
             .switch_range,
             .field_access,
             .sub,
             .sub_wrap,
+            .sub_sat,
             .slice,
             .slice_open,
             .slice_sentinel,
