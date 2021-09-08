@@ -574,10 +574,11 @@ fn zirExtended(sema: *Sema, block: *Scope.Block, inst: Zir.Inst.Index) CompileEr
         .c_define           => return sema.zirCDefine(           block, extended),
         .wasm_memory_size   => return sema.zirWasmMemorySize(    block, extended),
         .wasm_memory_grow   => return sema.zirWasmMemoryGrow(    block, extended),
-        .add_with_saturation=> return sema.zirSatArithmetic(     block, extended),
-        .sub_with_saturation=> return sema.zirSatArithmetic(     block, extended),
-        .mul_with_saturation=> return sema.zirSatArithmetic(     block, extended),
-        .shl_with_saturation=> return sema.zirSatArithmetic(     block, extended),
+        .add_with_saturation, 
+        .sub_with_saturation, 
+        .mul_with_saturation, 
+        .shl_with_saturation, 
+                            => return sema.zirSatArithmetic(     block, extended),
         // zig fmt: on
     }
 }
@@ -5731,7 +5732,7 @@ fn zirNegate(
     const lhs = sema.resolveInst(.zero);
     const rhs = sema.resolveInst(inst_data.operand);
 
-    return sema.analyzeArithmetic(block, tag_override, lhs, rhs, src, lhs_src, rhs_src);
+    return sema.analyzeArithmetic(block, tag_override, lhs, rhs, src, lhs_src, rhs_src, null);
 }
 
 fn zirArithmetic(sema: *Sema, block: *Scope.Block, inst: Zir.Inst.Index) CompileError!Air.Inst.Ref {
@@ -5747,7 +5748,7 @@ fn zirArithmetic(sema: *Sema, block: *Scope.Block, inst: Zir.Inst.Index) Compile
     const lhs = sema.resolveInst(extra.lhs);
     const rhs = sema.resolveInst(extra.rhs);
 
-    return sema.analyzeArithmetic(block, tag_override, lhs, rhs, sema.src, lhs_src, rhs_src);
+    return sema.analyzeArithmetic(block, tag_override, lhs, rhs, sema.src, lhs_src, rhs_src, null);
 }
 
 fn zirOverflowArithmetic(
@@ -5773,10 +5774,17 @@ fn zirSatArithmetic(
     defer tracy.end();
 
     const extra = sema.code.extraData(Zir.Inst.SaturatingArithmetic, extended.operand).data;
-    const src: LazySrcLoc = .{ .node_offset = extra.node };
-    return sema.mod.fail(&block.base, src, "TODO implement Sema.zirSatArithmetic", .{});
+    sema.src = .{ .node_offset_bin_op = extra.node };
+    const lhs_src: LazySrcLoc = .{ .node_offset_bin_lhs = extra.node };
+    const rhs_src: LazySrcLoc = .{ .node_offset_bin_rhs = extra.node };
+    const lhs = sema.resolveInst(extra.lhs);
+    const rhs = sema.resolveInst(extra.rhs);
+
+    return sema.analyzeArithmetic(block, .extended, lhs, rhs, sema.src, lhs_src, rhs_src, extended);
 }
 
+// TODO: audit - not sure if its a good idea to reuse this, adding `opt_extended` param
+// FIXME: somehow, rhs of <<| is required to be Log2T. this should accept T
 fn analyzeArithmetic(
     sema: *Sema,
     block: *Scope.Block,
@@ -5786,6 +5794,7 @@ fn analyzeArithmetic(
     src: LazySrcLoc,
     lhs_src: LazySrcLoc,
     rhs_src: LazySrcLoc,
+    opt_extended: ?Zir.Inst.Extended.InstData,
 ) CompileError!Air.Inst.Ref {
     const lhs_ty = sema.typeOf(lhs);
     const rhs_ty = sema.typeOf(rhs);
@@ -5926,7 +5935,16 @@ fn analyzeArithmetic(
         }
     }
 
-    const air_tag: Air.Inst.Tag = switch (zir_tag) {
+    var air_tag: Air.Inst.Tag = undefined;
+    if (opt_extended) |extended| {
+        air_tag = switch (extended.opcode) {
+            .add_with_saturation => .addsat,
+            .sub_with_saturation => .subsat,
+            .mul_with_saturation => .mulsat,
+            .shl_with_saturation => .shl_sat,
+            else => return sema.mod.fail(&block.base, src, "TODO implement arithmetic for extended opcode '{s}'", .{@tagName(extended.opcode)}),
+        };
+    } else air_tag = switch (zir_tag) {
         .add => .add,
         .addwrap => .addwrap,
         .sub => .sub,
