@@ -996,7 +996,7 @@ pub const Tokenizer = struct {
                         break;
                     },
                     '|' => {
-                        result.tag = .angle_bracket_angle_bracket_left_pipe;
+                        state = .angle_bracket_angle_bracket_left_pipe;
                     },
                     else => {
                         result.tag = .angle_bracket_angle_bracket_left;
@@ -1996,6 +1996,12 @@ test "tokenizer - multi line string literal with only 1 backslash" {
 test "tokenizer - invalid builtin identifiers" {
     try testTokenize("@()", &.{ .invalid, .l_paren, .r_paren });
     try testTokenize("@0()", &.{ .invalid, .integer_literal, .l_paren, .r_paren });
+}
+
+test "tokenizer - saturating" {
+    try testTokenize("<<", &.{ .angle_bracket_angle_bracket_left });
+    try testTokenize("<<|", &.{ .angle_bracket_angle_bracket_left_pipe });
+    try testTokenize("<<|=", &.{ .angle_bracket_angle_bracket_left_pipe_equal });
 }
 
 fn testTokenize(source: [:0]const u8, expected_tokens: []const Token.Tag) !void {
