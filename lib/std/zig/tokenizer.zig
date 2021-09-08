@@ -1999,9 +1999,9 @@ test "tokenizer - invalid builtin identifiers" {
 }
 
 test "tokenizer - saturating" {
-    try testTokenize("<<", &.{ .angle_bracket_angle_bracket_left });
-    try testTokenize("<<|", &.{ .angle_bracket_angle_bracket_left_pipe });
-    try testTokenize("<<|=", &.{ .angle_bracket_angle_bracket_left_pipe_equal });
+    try testTokenize("<<", &.{.angle_bracket_angle_bracket_left});
+    try testTokenize("<<|", &.{.angle_bracket_angle_bracket_left_pipe});
+    try testTokenize("<<|=", &.{.angle_bracket_angle_bracket_left_pipe_equal});
 }
 
 fn testTokenize(source: [:0]const u8, expected_tokens: []const Token.Tag) !void {

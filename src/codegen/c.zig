@@ -847,17 +847,17 @@ fn genBody(o: *Object, body: []const Air.Inst.Index) error{ AnalysisFail, OutOfM
             // that wrapping is UB.
             .add, .ptr_add => try airBinOp( o, inst, " + "),
             .addwrap       => try airWrapOp(o, inst, " + ", "addw_"),
-            .addsat        => try airSatOp(o, inst, " + ", "adds_"),
+            .addsat        => try airSatOp(o, inst, "adds_"),
             // TODO use a different strategy for sub that communicates to the optimizer
             // that wrapping is UB.
             .sub, .ptr_sub => try airBinOp( o, inst, " - "),
             .subwrap       => try airWrapOp(o, inst, " - ", "subw_"),
-            .subsat        => try airSatOp(o, inst, " - ", "subs_"),
+            .subsat        => try airSatOp(o, inst, "subs_"),
             // TODO use a different strategy for mul that communicates to the optimizer
             // that wrapping is UB.
             .mul           => try airBinOp( o, inst, " * "),
             .mulwrap       => try airWrapOp(o, inst, " * ", "mulw_"),
-            .mulsat        => try airSatOp(o, inst, " * ", "muls_"),
+            .mulsat        => try airSatOp(o, inst, "muls_"),
             // TODO use a different strategy for div that communicates to the optimizer
             // that wrapping is UB.
             .div           => try airBinOp( o, inst, " / "),
@@ -879,7 +879,7 @@ fn genBody(o: *Object, body: []const Air.Inst.Index) error{ AnalysisFail, OutOfM
 
             .shr        => try airBinOp(o, inst, " >> "),
             .shl        => try airBinOp(o, inst, " << "),
-            .shl_sat    => try airSatOp(o, inst, " << ", "shls_"),
+            .shl_sat    => try airSatOp(o, inst, "shls_"),
 
             .not        => try airNot(  o, inst),
 
@@ -1258,7 +1258,6 @@ fn airWrapOp(
 fn airSatOp(
     o: *Object,
     inst: Air.Inst.Index,
-    str_op: [*:0]const u8,
     fn_op: [*:0]const u8,
 ) !CValue {
     if (o.liveness.isUnused(inst))
@@ -1269,12 +1268,12 @@ fn airSatOp(
     const int_info = inst_ty.intInfo(o.dg.module.getTarget());
     const bits = int_info.bits;
 
-    // if it's an unsigned int with non-arbitrary bit size then we can just add
-    const ok_bits = switch (bits) {
-        8, 16, 32, 64, 128 => true,
-        else => false,
-    };
+    switch (bits) {
+        8, 16, 32, 64, 128 => {},
+        else => return o.dg.fail("TODO: C backend: airSatOp for non power of 2 integers", .{}),
+    }
 
+    // if it's an unsigned int with non-arbitrary bit size then we can just add
     if (bits > 64) {
         return o.dg.fail("TODO: C backend: airSatOp for large integers", .{});
     }
