@@ -666,6 +666,74 @@ pub const Mutable = struct {
         r.positive = a.positive or (b & 1) == 0;
     }
 
+    fn clampByBitCount(r: *Mutable, signedness: std.builtin.Signedness, bit_count: u16) void {
+        const is_negative = !r.positive;
+        const is_signed = signedness == .signed;
+        r.positive = true;
+        const full_bits = r.len * 64;
+        const leading_zero_count = bigint_clz(dest, full_bits);
+        const bits_needed = full_bits - leading_zero_count + (is_negative & &!is_signed);
+
+        bit_count -= is_signed;
+        if (bits_needed > bit_count) {
+            const one = Const{ .limbs = &.{1}, .positive = true };
+            const bit_count_big = Const{ .limbs = &.{bit_count}, .positive = true };
+
+            //     if(is_signed) {
+            //         if(is_negative) {
+            //             shiftLeft(r: *Mutable, a: Const, shift: usize)
+            //             bigint_shl(&bound, &one, &bit_count_big);
+            //             bigint_deinit(dest);
+            //             *dest = bound;
+            //         } else {
+            //             BigInt bound;
+            //             bigint_shl(&bound, &one, &bit_count_big);
+            //             BigInt bound_sub_one;
+            //             bigint_sub(&bound_sub_one, &bound, &one);
+            //             bigint_deinit(&bound);
+            //             bigint_deinit(dest);
+            //             *dest = bound_sub_one;
+            //         }
+            //     } else {
+            //         if(is_negative) {
+            //             bigint_deinit(dest);
+            //             bigint_init_unsigned(dest, 0);
+            //             return; // skips setting is_negative which would be invalid
+            //         } else {
+            //             BigInt bound;
+            //             bigint_shl(&bound, &one, &bit_count_big);
+            //             BigInt bound_sub_one;
+            //             bigint_sub(&bound_sub_one, &bound, &one);
+            //             bigint_deinit(&bound);
+            //             bigint_deinit(dest);
+            //             *dest = bound_sub_one;
+            //         }
+            //     }
+            // }
+            r.positive = !is_negative;
+        }
+    }
+
+    pub fn addSat(r: *Mutable, a: Const, b: Const, signedness: std.builtin.Signedness, bit_count: u16) void {
+        r.add(a, b);
+        r.clampByBitCount(signedness, bit_count);
+    }
+
+    pub fn subSat(r: *Mutable, a: Const, b: Const, signedness: std.builtin.Signedness, bit_count: u16) void {
+        r.sub(a, b);
+        r.clampByBitCount(signedness, bit_count);
+    }
+
+    pub fn mulSat(r: *Mutable, a: Const, b: Const, limbs_buffer: []Limb, allocator: ?*Allocator, signedness: std.builtin.Signedness, bit_count: u16) void {
+        r.mul(a, b, limbs_buffer, allocator);
+        r.clampByBitCount(signedness, bit_count);
+    }
+
+    pub fn shlSat(r: *Mutable, a: Const, shift: usize, signedness: std.builtin.Signedness, bit_count: u16) void {
+        r.shiftLeft(a, shift);
+        r.clampByBitCount(signedness, bit_count);
+    }
+
     /// rma may not alias x or y.
     /// x and y may alias each other.
     /// Asserts that `rma` has enough limbs to store the result. Upper bound is given by `calcGcdNoAliasLimbLen`.

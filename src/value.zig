@@ -1600,6 +1600,103 @@ pub const Value = extern union {
         }
     }
 
+    pub fn intAddSat(lhs: Value, rhs: Value, allocator: *Allocator, signedness: std.builtin.Signedness, bits: u16) !Value {
+        // TODO is this a performance issue? maybe we should try the operation without
+        // resorting to BigInt first.
+        var lhs_space: Value.BigIntSpace = undefined;
+        var rhs_space: Value.BigIntSpace = undefined;
+        const lhs_bigint = lhs.toBigInt(&lhs_space);
+        const rhs_bigint = rhs.toBigInt(&rhs_space);
+        const limbs = try allocator.alloc(
+            std.math.big.Limb,
+            std.math.max(lhs_bigint.limbs.len, rhs_bigint.limbs.len) + 1,
+        );
+        var result_bigint = BigIntMutable{ .limbs = limbs, .positive = undefined, .len = undefined };
+
+        result_bigint.addSat(lhs_bigint, rhs_bigint, signedness, bits);
+        const result_limbs = result_bigint.limbs[0..result_bigint.len];
+
+        if (result_bigint.positive) {
+            return Value.Tag.int_big_positive.create(allocator, result_limbs);
+        } else {
+            return Value.Tag.int_big_negative.create(allocator, result_limbs);
+        }
+    }
+
+    pub fn intSubSat(lhs: Value, rhs: Value, allocator: *Allocator, signedness: std.builtin.Signedness, bits: u16) !Value {
+        // TODO is this a performance issue? maybe we should try the operation without
+        // resorting to BigInt first.
+        var lhs_space: Value.BigIntSpace = undefined;
+        var rhs_space: Value.BigIntSpace = undefined;
+        const lhs_bigint = lhs.toBigInt(&lhs_space);
+        const rhs_bigint = rhs.toBigInt(&rhs_space);
+        const limbs = try allocator.alloc(
+            std.math.big.Limb,
+            std.math.max(lhs_bigint.limbs.len, rhs_bigint.limbs.len) + 1,
+        );
+        var result_bigint = BigIntMutable{ .limbs = limbs, .positive = undefined, .len = undefined };
+        result_bigint.subSat(lhs_bigint, rhs_bigint, signedness, bits);
+        const result_limbs = result_bigint.limbs[0..result_bigint.len];
+
+        if (result_bigint.positive) {
+            return Value.Tag.int_big_positive.create(allocator, result_limbs);
+        } else {
+            return Value.Tag.int_big_negative.create(allocator, result_limbs);
+        }
+    }
+
+    pub fn intMulSat(lhs: Value, rhs: Value, allocator: *Allocator, signedness: std.builtin.Signedness, bits: u16) !Value {
+        // TODO is this a performance issue? maybe we should try the operation without
+        // resorting to BigInt first.
+        var lhs_space: Value.BigIntSpace = undefined;
+        var rhs_space: Value.BigIntSpace = undefined;
+        const lhs_bigint = lhs.toBigInt(&lhs_space);
+        const rhs_bigint = rhs.toBigInt(&rhs_space);
+        const limbs = try allocator.alloc(
+            std.math.big.Limb,
+            lhs_bigint.limbs.len + rhs_bigint.limbs.len + 1,
+        );
+        var result_bigint = BigIntMutable{ .limbs = limbs, .positive = undefined, .len = undefined };
+        var limbs_buffer = try allocator.alloc(
+            std.math.big.Limb,
+            std.math.big.int.calcMulLimbsBufferLen(lhs_bigint.limbs.len, rhs_bigint.limbs.len, 1),
+        );
+        defer allocator.free(limbs_buffer);
+        result_bigint.mulSat(lhs_bigint, rhs_bigint, limbs_buffer, allocator, signedness, bits);
+        const result_limbs = result_bigint.limbs[0..result_bigint.len];
+
+        if (result_bigint.positive) {
+            return Value.Tag.int_big_positive.create(allocator, result_limbs);
+        } else {
+            return Value.Tag.int_big_negative.create(allocator, result_limbs);
+        }
+    }
+
+    pub fn intShlSat(lhs: Value, rhs: Value, allocator: *Allocator, signedness: std.builtin.Signedness, bits: u16) !Value {
+        // TODO is this a performance issue? maybe we should try the operation without
+        // resorting to BigInt first.
+        var lhs_space: Value.BigIntSpace = undefined;
+        const lhs_bigint = lhs.toBigInt(&lhs_space);
+        const shift = rhs.toUnsignedInt();
+        const limbs = try allocator.alloc(
+            std.math.big.Limb,
+            lhs_bigint.limbs.len - (shift / (@sizeOf(std.math.big.Limb) * 8)),
+        );
+        var result_bigint = BigIntMutable{
+            .limbs = limbs,
+            .positive = undefined,
+            .len = undefined,
+        };
+        result_bigint.shlSat(lhs_bigint, shift, signedness, bits);
+        const result_limbs = result_bigint.limbs[0..result_bigint.len];
+
+        if (result_bigint.positive) {
+            return Value.Tag.int_big_positive.create(allocator, result_limbs);
+        } else {
+            return Value.Tag.int_big_negative.create(allocator, result_limbs);
+        }
+    }
+
     pub fn intTrunc(val: Value, arena: *Allocator, bits: u16) !Value {
         const x = val.toUnsignedInt(); // TODO: implement comptime truncate on big ints
         if (bits == 64) return val;

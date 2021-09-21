@@ -5828,7 +5828,7 @@ fn analyzeSatArithmetic(
     const is_int = scalar_tag == .Int or scalar_tag == .ComptimeInt;
 
     if (!is_int)
-        return sema.mod.fail(&block.base, src, "invalid operands to binary expression: '{s}' and '{s}'", .{
+        return sema.mod.fail(&block.base, src, "saturating binary expression expecting integers. got '{s}' and '{s}'", .{
             @tagName(lhs_zig_ty_tag), @tagName(rhs_zig_ty_tag),
         });
 
@@ -5844,8 +5844,15 @@ fn analyzeSatArithmetic(
                     else => {},
                 }
             }
+            const info = scalar_type.intInfo(sema.mod.getTarget());
 
-            return sema.mod.fail(&block.base, src, "TODO implement comptime saturating arithmetic for operand '{s}'", .{@tagName(extended.opcode)});
+            const value = switch (extended.opcode) {
+                .add_with_saturation => try lhs_val.intAddSat(rhs_val, sema.arena, info.signedness, info.bits),
+                .sub_with_saturation => try lhs_val.intSubSat(rhs_val, sema.arena, info.signedness, info.bits),
+                .mul_with_saturation => try lhs_val.intMulSat(rhs_val, sema.arena, info.signedness, info.bits),
+                .shl_with_saturation => try lhs_val.intShlSat(rhs_val, sema.arena, info.signedness, info.bits),
+                else => return sema.mod.fail(&block.base, src, "TODO implement comptime saturating arithmetic for operand '{s}'", .{@tagName(extended.opcode)}),
+            };
         } else {
             try sema.requireRuntimeBlock(block, rhs_src);
         }
