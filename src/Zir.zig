@@ -878,6 +878,9 @@ pub const Inst = struct {
         /// Implements the `@select` builtin.
         /// Uses the `pl_node` union field with payload `Select`.
         select,
+        /// Implements the `@mulCarryless` builtin.
+        /// Uses the `pl_node` union field with payload `MulCarryless`.
+        mul_carryless,
         /// Implements the `@atomicLoad` builtin.
         /// Uses the `pl_node` union field with payload `Bin`.
         atomic_load,
@@ -1189,6 +1192,7 @@ pub const Inst = struct {
                 .reduce,
                 .shuffle,
                 .select,
+                .mul_carryless,
                 .atomic_load,
                 .atomic_rmw,
                 .atomic_store,
@@ -1469,6 +1473,7 @@ pub const Inst = struct {
                 .reduce = .pl_node,
                 .shuffle = .pl_node,
                 .select = .pl_node,
+                .mul_carryless = .pl_node,
                 .atomic_load = .pl_node,
                 .atomic_rmw = .pl_node,
                 .atomic_store = .pl_node,
@@ -1604,6 +1609,10 @@ pub const Inst = struct {
         /// `operand` is payload index to `OverflowArithmetic`.
         /// `small` is unused.
         shl_with_overflow,
+        /// Implements the `@mulCarryless` builtin.
+        /// `operand` is payload index to `MulCarryless`.
+        /// `small` is unused.
+        mul_carryless,
         /// `operand` is payload index to `UnNode`.
         c_undef,
         /// `operand` is payload index to `UnNode`.
@@ -2856,6 +2865,12 @@ pub const Inst = struct {
         pred: Ref,
         a: Ref,
         b: Ref,
+    };
+
+    pub const MulCarryless = struct {
+        a: Ref,
+        b: Ref,
+        imm: Ref,
     };
 
     pub const AsyncCall = struct {

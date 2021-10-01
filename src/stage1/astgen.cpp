@@ -198,6 +198,8 @@ void destroy_instruction_src(Stage1ZirInst *inst) {
             return heap::c_allocator.destroy(reinterpret_cast<Stage1ZirInstShuffleVector *>(inst));
         case Stage1ZirInstIdSelect:
             return heap::c_allocator.destroy(reinterpret_cast<Stage1ZirInstSelect *>(inst));
+        case Stage1ZirInstIdMulcl:
+            return heap::c_allocator.destroy(reinterpret_cast<Stage1ZirInstMulcl *>(inst));
         case Stage1ZirInstIdSplat:
             return heap::c_allocator.destroy(reinterpret_cast<Stage1ZirInstSplat *>(inst));
         case Stage1ZirInstIdBoolNot:
@@ -655,6 +657,10 @@ static constexpr Stage1ZirInstId ir_inst_id(Stage1ZirInstShuffleVector *) {
 
 static constexpr Stage1ZirInstId ir_inst_id(Stage1ZirInstSelect *) {
     return Stage1ZirInstIdSelect;
+}
+
+static constexpr Stage1ZirInstId ir_inst_id(Stage1ZirInstMulcl *) {
+    return Stage1ZirInstIdMulcl;
 }
 
 static constexpr Stage1ZirInstId ir_inst_id(Stage1ZirInstSplat *) {
@@ -2055,6 +2061,21 @@ static Stage1ZirInst *ir_build_select(Stage1AstGen *ag, Scope *scope, AstNode *s
     ir_ref_instruction(pred, ag->current_basic_block);
     ir_ref_instruction(a, ag->current_basic_block);
     ir_ref_instruction(b, ag->current_basic_block);
+
+    return &instruction->base;
+}
+
+static Stage1ZirInst *ir_build_mul_carryless(Stage1AstGen *ag, Scope *scope, AstNode *source_node,
+    Stage1ZirInst *a, Stage1ZirInst *b, Stage1ZirInst *imm)
+{
+    Stage1ZirInstMulcl *instruction = ir_build_instruction<Stage1ZirInstMulcl>(ag, scope, source_node);
+    instruction->a = a;
+    instruction->b = b;
+    instruction->imm = imm;
+
+    ir_ref_instruction(a, ag->current_basic_block);
+    ir_ref_instruction(b, ag->current_basic_block);
+    ir_ref_instruction(imm, ag->current_basic_block);
 
     return &instruction->base;
 }
@@ -4688,6 +4709,30 @@ static Stage1ZirInst *astgen_builtin_fn_call(Stage1AstGen *ag, Scope *scope, Ast
                 Stage1ZirInst *select = ir_build_select(ag, scope, node,
                     arg0_value, arg1_value, arg2_value, arg3_value);
                 return ir_lval_wrap(ag, scope, select, lval, result_loc);
+            }
+        case BuiltinFnIdMulcl:
+            {
+                // Used for the type expr
+                Scope *comptime_scope = create_comptime_scope(ag->codegen, node, scope);
+
+                AstNode *arg0_node = node->data.fn_call_expr.params.at(0);
+                Stage1ZirInst *arg0_value = astgen_node(ag, arg0_node, comptime_scope);
+                if (arg0_value == ag->codegen->invalid_inst_src)
+                    return arg0_value;
+
+                AstNode *arg1_node = node->data.fn_call_expr.params.at(1);
+                Stage1ZirInst *arg1_value = astgen_node(ag, arg1_node, scope);
+                if (arg1_value == ag->codegen->invalid_inst_src)
+                    return arg1_value;
+
+                AstNode *arg2_node = node->data.fn_call_expr.params.at(2);
+                Stage1ZirInst *arg2_value = astgen_node(ag, arg2_node, scope);
+                if (arg2_value == ag->codegen->invalid_inst_src)
+                    return arg2_value;
+
+                Stage1ZirInst *mulcl = ir_build_mul_carryless(ag, scope, node,
+                    arg0_value, arg1_value, arg2_value);
+                return ir_lval_wrap(ag, scope, mulcl, lval, result_loc);
             }
         case BuiltinFnIdSplat:
             {

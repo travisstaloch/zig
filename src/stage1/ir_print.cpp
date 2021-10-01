@@ -95,6 +95,8 @@ const char* ir_inst_src_type_str(Stage1ZirInstId id) {
             return "SrcShuffle";
         case Stage1ZirInstIdSelect:
             return "SrcSelect";
+        case Stage1ZirInstIdMulcl:
+            return "SrcMulcl";
         case Stage1ZirInstIdSplat:
             return "SrcSplat";
         case Stage1ZirInstIdDeclVar:
@@ -383,6 +385,8 @@ const char* ir_inst_gen_type_str(Stage1AirInstId id) {
             return "GenShuffle";
         case Stage1AirInstIdSelect:
             return "GenSelect";
+        case Stage1AirInstIdMulcl:
+            return "GenMulcl";
         case Stage1AirInstIdSplat:
             return "GenSplat";
         case Stage1AirInstIdDeclVar:
@@ -1760,6 +1764,26 @@ static void ir_print_select(IrPrintGen *irp, Stage1AirInstSelect *instruction) {
     fprintf(irp->f, ")");
 }
 
+static void ir_print_mulcl(IrPrintSrc *irp, Stage1ZirInstMulcl *instruction) {
+    fprintf(irp->f, "@mulCarryless(");
+    ir_print_other_inst_src(irp, instruction->a);
+    fprintf(irp->f, ", ");
+    ir_print_other_inst_src(irp, instruction->b);
+    fprintf(irp->f, ", ");
+    ir_print_other_inst_src(irp, instruction->imm);
+    fprintf(irp->f, ")");
+}
+
+static void ir_print_mulcl(IrPrintGen *irp, Stage1AirInstMulcl *instruction) {
+    fprintf(irp->f, "@mulCarryless(");
+    ir_print_other_inst_gen(irp, instruction->a);
+    fprintf(irp->f, ", ");
+    ir_print_other_inst_gen(irp, instruction->b);
+    fprintf(irp->f, ", ");
+    ir_print_other_inst_gen(irp, instruction->imm);
+    fprintf(irp->f, ")");
+}
+
 static void ir_print_splat_src(IrPrintSrc *irp, Stage1ZirInstSplat *instruction) {
     fprintf(irp->f, "@splat(");
     ir_print_other_inst_src(irp, instruction->len);
@@ -2877,6 +2901,9 @@ static void ir_print_inst_src(IrPrintSrc *irp, Stage1ZirInst *instruction, bool 
         case Stage1ZirInstIdSelect:
             ir_print_select(irp, (Stage1ZirInstSelect *)instruction);
             break;
+        case Stage1ZirInstIdMulcl:
+            ir_print_mulcl(irp, (Stage1ZirInstMulcl *)instruction);
+            break;
         case Stage1ZirInstIdSplat:
             ir_print_splat_src(irp, (Stage1ZirInstSplat *)instruction);
             break;
@@ -3221,6 +3248,9 @@ static void ir_print_inst_gen(IrPrintGen *irp, Stage1AirInst *instruction, bool 
             break;
         case Stage1AirInstIdSelect:
             ir_print_select(irp, (Stage1AirInstSelect *)instruction);
+            break;
+        case Stage1AirInstIdMulcl:
+            ir_print_mulcl(irp, (Stage1AirInstMulcl *)instruction);
             break;
         case Stage1AirInstIdSplat:
             ir_print_splat_gen(irp, (Stage1AirInstSplat *)instruction);

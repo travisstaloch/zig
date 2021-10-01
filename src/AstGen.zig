@@ -2177,6 +2177,7 @@ fn unusedResultExpr(gz: *GenZir, scope: *Scope, statement: Ast.Node.Index) Inner
             .reduce,
             .shuffle,
             .select,
+            .mul_carryless,
             .atomic_load,
             .atomic_rmw,
             .mul_add,
@@ -7537,7 +7538,7 @@ fn builtinCall(
             });
             return rvalue(gz, rl, result, node);
         },
-
+        
         .atomic_load => {
             const int_type = try typeExpr(gz, scope, params[0]);
             // TODO allow this pointer type to be volatile
@@ -7666,6 +7667,14 @@ fn builtinCall(
                 .pred = try expr(gz, scope, .none, params[1]),
                 .a = try expr(gz, scope, .none, params[2]),
                 .b = try expr(gz, scope, .none, params[3]),
+            });
+            return rvalue(gz, rl, result, node);
+        },
+        .mul_carryless => {
+            const result = try gz.addPlNode(.mul_carryless, node, Zir.Inst.MulCarryless{
+                .a = try expr(gz, scope, .none, params[0]),
+                .b = try expr(gz, scope, .none, params[1]),
+                .imm = try expr(gz, scope, .none, params[2]),
             });
             return rvalue(gz, rl, result, node);
         },

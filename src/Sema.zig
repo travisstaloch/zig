@@ -333,6 +333,7 @@ pub fn analyzeBody(
             .reduce                       => try sema.zirReduce(block, inst),
             .shuffle                      => try sema.zirShuffle(block, inst),
             .select                       => try sema.zirSelect(block, inst),
+            .mul_carryless                => try sema.zirMulCarryless(block, inst),
             .atomic_load                  => try sema.zirAtomicLoad(block, inst),
             .atomic_rmw                   => try sema.zirAtomicRmw(block, inst),
             .mul_add                      => try sema.zirMulAdd(block, inst),
@@ -705,6 +706,7 @@ fn zirExtended(sema: *Sema, block: *Scope.Block, inst: Zir.Inst.Index) CompileEr
         .c_define           => return sema.zirCDefine(           block, extended),
         .wasm_memory_size   => return sema.zirWasmMemorySize(    block, extended),
         .wasm_memory_grow   => return sema.zirWasmMemoryGrow(    block, extended),
+        .mul_carryless      => @panic("TODO: zirExtended mulCarryless"),
         // zig fmt: on
     }
 }
@@ -8938,6 +8940,12 @@ fn zirSelect(sema: *Sema, block: *Scope.Block, inst: Zir.Inst.Index) CompileErro
     const inst_data = sema.code.instructions.items(.data)[inst].pl_node;
     const src = inst_data.src();
     return sema.mod.fail(&block.base, src, "TODO: Sema.zirSelect", .{});
+}
+
+fn zirMulCarryless(sema: *Sema, block: *Scope.Block, inst: Zir.Inst.Index) CompileError!Air.Inst.Ref {
+    const inst_data = sema.code.instructions.items(.data)[inst].pl_node;
+    const src = inst_data.src();
+    return sema.mod.fail(&block.base, src, "TODO: Sema.zirMulCarryless", .{});
 }
 
 fn zirAtomicLoad(sema: *Sema, block: *Scope.Block, inst: Zir.Inst.Index) CompileError!Air.Inst.Ref {

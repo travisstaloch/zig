@@ -72,6 +72,7 @@ pub const Tag = enum {
     rem,
     return_address,
     select,
+    mul_carryless,
     set_align_stack,
     set_cold,
     set_eval_branch_quota,
@@ -632,6 +633,13 @@ pub const list = list: {
             .{
                 .tag = .select,
                 .param_count = 4,
+            },
+        },
+        .{
+            "@mulCarryless",
+            .{
+                .tag = .mul_carryless,
+                .param_count = 3,
             },
         },
         .{

@@ -272,6 +272,7 @@ const Writer = struct {
             .union_init_ptr,
             .shuffle,
             .select,
+            .mul_carryless,
             .mul_add,
             .builtin_call,
             .field_parent_ptr,
@@ -495,6 +496,7 @@ const Writer = struct {
             .builtin_extern,
             .wasm_memory_size,
             .wasm_memory_grow,
+            .mul_carryless,
             => try stream.writeAll("TODO))"),
         }
     }

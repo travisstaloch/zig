@@ -452,6 +452,9 @@ pub const Builder = opaque {
     pub const buildUMulFixSat = ZigLLVMBuildUMulFixSat;
     extern fn ZigLLVMBuildUMulFixSat(*const Builder, LHS: *const Value, RHS: *const Value, Name: [*:0]const u8) *const Value;
 
+    pub const buildMulcl = ZigLLVMBuildMulcl;
+    extern fn ZigLLVMBuildMulcl(*const Builder, A: *const Value, B: *const Value, IMM: *const Value, Name: [*:0]const u8) *const Value;
+
     pub const buildUDiv = LLVMBuildUDiv;
     extern fn LLVMBuildUDiv(*const Builder, LHS: *const Value, RHS: *const Value, Name: [*:0]const u8) *const Value;
 

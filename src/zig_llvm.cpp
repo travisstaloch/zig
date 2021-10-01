@@ -545,6 +545,16 @@ LLVMValueRef ZigLLVMBuildUShlSat(LLVMBuilderRef B, LLVMValueRef LHS, LLVMValueRe
     return wrap(call_inst);
 }
 
+
+#include <llvm/IR/IntrinsicsX86.h> 
+
+LLVMValueRef ZigLLVMBuildMulcl(LLVMBuilderRef B, LLVMValueRef LHS, LLVMValueRef RHS, LLVMValueRef IMM, const char *name) {
+    llvm::Value* values[3] = {unwrap(LHS), unwrap(RHS), unwrap(IMM)};
+    
+    CallInst *call_inst = unwrap(B)->CreateIntrinsic(Intrinsic::X86Intrinsics::x86_pclmulqdq, nullptr, values, nullptr, name);
+    return wrap(call_inst);
+}
+
 void ZigLLVMFnSetSubprogram(LLVMValueRef fn, ZigLLVMDISubprogram *subprogram) {
     assert( isa<Function>(unwrap(fn)) );
     Function *unwrapped_function = reinterpret_cast<Function*>(unwrap(fn));

@@ -1776,6 +1776,7 @@ enum BuiltinFnId {
     BuiltinFnIdVectorType,
     BuiltinFnIdShuffle,
     BuiltinFnIdSelect,
+    BuiltinFnIdMulcl,
     BuiltinFnIdSplat,
     BuiltinFnIdSetCold,
     BuiltinFnIdSetRuntimeSafety,
@@ -2568,6 +2569,7 @@ enum Stage1ZirInstId : uint8_t {
     Stage1ZirInstIdVectorType,
     Stage1ZirInstIdShuffleVector,
     Stage1ZirInstIdSelect,
+    Stage1ZirInstIdMulcl,
     Stage1ZirInstIdSplat,
     Stage1ZirInstIdBoolNot,
     Stage1ZirInstIdMemset,
@@ -2689,6 +2691,7 @@ enum Stage1AirInstId : uint8_t {
     Stage1AirInstIdTruncate,
     Stage1AirInstIdShuffleVector,
     Stage1AirInstIdSelect,
+    Stage1AirInstIdMulcl,
     Stage1AirInstIdSplat,
     Stage1AirInstIdBoolNot,
     Stage1AirInstIdMemset,
@@ -4341,6 +4344,22 @@ struct Stage1AirInstSelect {
     Stage1AirInst *pred;  // This is in zig-format, not llvm format
     Stage1AirInst *a;
     Stage1AirInst *b;
+};
+
+struct Stage1ZirInstMulcl {
+    Stage1ZirInst base;
+
+    Stage1ZirInst *a;
+    Stage1ZirInst *b;
+    Stage1ZirInst *imm;
+};
+
+struct Stage1AirInstMulcl {
+    Stage1AirInst base;
+
+    Stage1AirInst *a;
+    Stage1AirInst *b;
+    Stage1AirInst *imm;
 };
 
 struct Stage1ZirInstSplat {
